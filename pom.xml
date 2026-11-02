@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- 1. PARENT (Herança): Diz que nosso projeto é filho do Spring Boot 4.1.1.
+         Graças a isso, não precisamos digitar a <version> na maioria das dependências abaixo,
+         pois o Spring Boot já escolhe as versões compatíveis automaticamente. -->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/>
+	</parent>
+
+	<!-- 2. IDENTIFICAÇÃO DO PROJETO: O nome do pacote da sua equipe e o nome do projeto -->
+	<groupId>com.desafiogc.time18</groupId>
+	<artifactId>portal-patrocinador-pa</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+
+	<!-- 3. PROPRIEDADES: Trava a versão do compilador no Java 21 (LTS) -->
+	<properties>
+		<java.version>21</java.version>
+	</properties>
+
+	<!-- 4. DEPENDÊNCIAS (Bibliotecas que o projeto usa): -->
+	<dependencies>
+		<!-- DATA JPA: Traz o Hibernate e o Spring Data. Permite transformar classes Java (@Entity)
+             em tabelas do banco e fazer buscas sem escrever SQL manual. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- SECURITY: Protege as rotas da API, fornece o BCrypt (para criptografar senhas)
+             e gerencia quem está logado e qual o perfil (ADMIN vs PATROCINADOR). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- VALIDATION: Permite usar anotações como @NotBlank, @Email e @Size nos DTOs
+             para barrar dados vazios ou inválidos antes de chegarem no banco. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- WEBMVC: Transforma o projeto em uma API Web REST. Traz o servidor Tomcat (porta 8080)
+             e o conversor automático de objetos Java para JSON (Jackson). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- SPRINGDOC OPENAPI (SWAGGER): Lê nossos Controllers e gera automaticamente aquela
+             página visual (/swagger-ui/index.html) para testarmos as rotas no navegador. -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+
+		<!-- ================= NOVAS DEPENDÊNCIAS ADICIONADAS AQUI ================= -->
+
+		<!-- FLYWAY CORE: Lê a pasta src/main/resources/db/migration ao dar Play
+             e executa os arquivos V1__, V2__ lá no Supabase em ordem. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+
+		<!-- FLYWAY POSTGRESQL: Ensina o Flyway a conversar especificamente com a sintaxe do PostgreSQL. -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- OAUTH2 JOSE (NIMBUS): Biblioteca oficial do Spring Security para criar, assinar com senha
+             secreta (HMAC-SHA256) e ler os Tokens JWT. -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-jose</artifactId>
+		</dependency>
+
+		<!-- ======================================================================= -->
+
+		<!-- DEVTOOLS: Reinicia o servidor mais rápido quando você altera um código e salva. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- DRIVER POSTGRESQL: O "tradutor" que permite ao Java se conectar ao banco PostgreSQL do Supabase. -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- LOMBOK: Escreve os métodos repetitivos (Getters, Setters, Construtores, Builder)
+             invisivelmente usando anotações como @Getter, @Setter e @RequiredArgsConstructor. -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- BIBLIOTECAS DE TESTE (Só rodam quando executamos testes automatizados): -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<!-- 5. BUILD / PLUGINS: Ensina o Maven a empacotar o projeto e avisa o compilador Java
+         para processar as anotações do Lombok antes de compilar. -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

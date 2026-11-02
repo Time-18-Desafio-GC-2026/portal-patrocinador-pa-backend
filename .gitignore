@@ -1,0 +1,34 @@
+# Compilados do Maven e Java
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+!.mvn/wrapper/maven-wrapper.jar
+
+# Arquivos de IDE (IntelliJ IDEA, Eclipse, VS Code)
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.vscode/
+
+# Segredos, Variáveis de Ambiente e Configurações Locais com Senhas
+.env
+*.env
+application-local.properties
+application-dev.properties
+
+# Arquivos de Sistema Operacional e Logs
+.DS_Store
+Thumbs.db
+*.log
