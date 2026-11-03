@@ -2,22 +2,26 @@ package com.desafiogc.time18.services;
 
 import com.desafiogc.time18.common.ExcecaoApi;
 import com.desafiogc.time18.dtos.OperacaoPortalDtos.*;
+import com.desafiogc.time18.dtos.PythonEtlDtos.IndicadorEtlDto;
+import com.desafiogc.time18.dtos.PythonEtlDtos.ResultadoEtlPythonResponse;
 import com.desafiogc.time18.entities.*;
 import com.desafiogc.time18.repositories.IndicadorRelatorioRepository;
 import com.desafiogc.time18.repositories.MaterialRepository;
 import com.desafiogc.time18.repositories.PerguntaPesquisaRepository;
 import com.desafiogc.time18.security.UsuarioAutenticado;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -30,8 +34,9 @@ public class OperacaoPortalService {
     private final AutenticacaoService autenticacaoService;
     private final AuditoriaService auditoriaService;
     private final SupabaseStorageService storageService;
+    private final PythonEtlClient pythonEtlClient;
 
-    // ==================== 1. MATERIAIS E ARQUIVOS (CRITÉRIO DE ACEITE V1) ====================
+    // ==================== 1. MATERIAIS E ARQUIVOS (STORAGE + GATILHO PYTHON ETL) ====================
 
     public MaterialResponse registrarMaterial(UUID marcaId, RegistrarMaterialRequest req, MultipartFile arquivo, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -39,9 +44,21 @@ public class OperacaoPortalService {
 
         String urlExterna = req.urlExterna();
 
-        // Se houver um arquivo na requisição, salva na nuvem e substitui a urlExterna pelo link público
         if (arquivo != null && !arquivo.isEmpty()) {
             urlExterna = storageService.fazerUpload(arquivo, "marcas/" + marcaId);
+
+            // GATILHO PYTHON: Se o arquivo enviado for uma planilha .xlsx, envia para o Python validar e extrair KPIs da marca!
+            String nomeOriginal = arquivo.getOriginalFilename();
+            if (nomeOriginal != null && nomeOriginal.toLowerCase().endsWith(".xlsx")) {
+                try {
+                    ResultadoEtlPythonResponse etlResult = pythonEtlClient.processarPlanilhaUpload(arquivo);
+                    if (etlResult != null && etlResult.indicadores() != null) {
+                        salvarIndicadoresVindosDoPython(marca, ator, etlResult);
+                    }
+                } catch (IllegalStateException erroConexao) {
+                    log.warn("Upload salvo no Storage, mas o serviço Python está offline no momento: {}", erroConexao.getMessage());
+                }
+            }
         }
 
         Material material = Material.builder()
@@ -50,8 +67,8 @@ public class OperacaoPortalService {
                 .descricao(req.descricao())
                 .abaDestino(req.abaDestino().trim().toUpperCase())
                 .tipoMaterial(req.tipoMaterial().trim().toUpperCase())
-                .caminhoStorage(req.caminhoStorage())
-                .urlExterna(urlExterna) // Guardará a URL real do Supabase
+                .caminhoStorage(urlExterna)
+                .urlExterna(urlExterna)
                 .status("ENVIADO")
                 .autorId(ator.getId())
                 .autorNome(ator.getNome() != null ? ator.getNome() : ator.getEmail())
@@ -83,7 +100,6 @@ public class OperacaoPortalService {
 
         marcaService.validarAcessoAMarca(ator, material.getMarca().getId());
 
-        // Audita toda vez que o arquivo é aberto/baixado sem apagar os registros anteriores!
         auditoriaService.registrar(ator, AcaoAuditoria.MATERIAL_BAIXADO, material.getMarca(),
                 "Acessou/Baixou o material: " + material.getTitulo());
         return MaterialResponse.de(material);
@@ -121,7 +137,7 @@ public class OperacaoPortalService {
         return PerguntaPesquisaResponse.de(pergunta);
     }
 
-    // ==================== 3. RELATÓRIO CONSOLIDADO V1 E INTEGRAÇÃO DADOS ====================
+    // ==================== 3. RELATÓRIO CONSOLIDADO E INTEGRAÇÃO COM PYTHON ====================
 
     public IndicadorResponse adicionarIndicador(UUID marcaId, SalvarIndicadorRequest req, UsuarioAutenticado logado) {
         Usuario admin = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -143,38 +159,63 @@ public class OperacaoPortalService {
         return IndicadorResponse.de(ind);
     }
 
-    /**
-     * Carrega automaticamente na tabela indicador_relatorio os KPIs consolidados da planilha oficial
-     * resultados_cliente.xlsx (Mídia + Pesquisa de Ativação) para demonstração imediata!
-     */
+    @Transactional(readOnly = true)
     public List<IndicadorResponse> importarAmostraPadraoPlanilha(UUID marcaId, UsuarioAutenticado logado) {
-        Usuario admin = autenticacaoService.buscarUsuarioAtivo(logado);
-        Marca marca = marcaService.buscarEValidarAcessoMarca(marcaId, admin);
+        Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
+        marcaService.buscarEValidarAcessoMarca(marcaId, ator);
 
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "MIDIA");
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA_ATIVACAO");
-
-        List<IndicadorRelatorio> amostra = List.of(
-                criarInd(marca, "MIDIA", "Instagram - Visualizações (30 e 31/01)", 190000, "80k no dia 30/01 + 110k no dia 31/01", "Planilha resultados_cliente.xlsx (Aba Mídia)"),
-                criarInd(marca, "MIDIA", "TikTok - Visualizações (30 e 31/01)", 150000, "60k no dia 30/01 + 90k no dia 31/01", "Planilha resultados_cliente.xlsx (Aba Mídia)"),
-                criarInd(marca, "MIDIA", "YouTube - Visualizações (30 e 31/01)", 80000, "30k no dia 30/01 + 50k no dia 31/01", "Planilha resultados_cliente.xlsx (Aba Mídia)"),
-                criarInd(marca, "MIDIA", "TikTok - Menções Orgânicas", 420, "180 no dia 30/01 + 240 no dia 31/01", "Planilha resultados_cliente.xlsx (Aba Mídia)"),
-                criarInd(marca, "MIDIA", "Imprensa - Citações Oficiais", 30, "12 no dia 30/01 + 18 no dia 31/01", "Planilha resultados_cliente.xlsx (Aba Mídia)"),
-                criarInd(marca, "PESQUISA_ATIVACAO", "Importância das Marcas no Festival (Q07)", 88, "176 de 200 respondentes avaliaram como importante/muito importante", "Planilha resultados_cliente.xlsx (Aba Pesquisa)"),
-                criarInd(marca, "PESQUISA_ATIVACAO", "Diversão na Ativação da Marca (Q08)", 74, "148 de 200 visitantes afirmaram ter se divertido na ativação", "Planilha resultados_cliente.xlsx (Aba Pesquisa)"),
-                criarInd(marca, "PESQUISA_ATIVACAO", "Inclusão e Acessibilidade (Q09)", 77, "154 de 200 visitantes consideram a experiência inclusiva", "Planilha resultados_cliente.xlsx (Aba Pesquisa)")
-        );
-
-        indicadorRepository.saveAll(amostra);
-        auditoriaService.registrar(admin, AcaoAuditoria.INDICADORES_IMPORTADOS, marca,
-                "Importação automática da base resultados_cliente.xlsx concluída (8 indicadores consolidados)");
-
-        return amostra.stream().map(IndicadorResponse::de).toList();
+        return indicadorRepository.findByMarcaIdOrderBySecaoAscNomeIndicadorAsc(marcaId)
+                .stream()
+                .map(IndicadorResponse::de)
+                .toList();
     }
 
-    /**
-     * Gera o Relatório Consolidado V1 do Patrocinador direto da base (sem montagem manual!).
-     */
+    private List<IndicadorResponse> salvarIndicadoresVindosDoPython(
+            Marca marca,
+            Usuario ator,
+            ResultadoEtlPythonResponse etlResult
+    ) {
+        UUID marcaId = marca.getId();
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PERFIL");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "MIDIA");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA_ATIVACAO");
+
+        List<IndicadorRelatorio> entidades = new ArrayList<>();
+        for (IndicadorEtlDto dto : etlResult.indicadores()) {
+            BigDecimal valorNum = dto.valorNumerico() != null
+                    ? BigDecimal.valueOf(dto.valorNumerico())
+                    : null;
+
+            entidades.add(IndicadorRelatorio.builder()
+                    .marca(marca)
+                    .evento(marca.getEvento())
+                    .secao(dto.secao() != null ? dto.secao().trim().toUpperCase() : "GERAL")
+                    .nomeIndicador(dto.nomeIndicador())
+                    .valorNumerico(valorNum)
+                    .valorTexto(dto.valorTexto())
+                    .fonteDados(dto.fonteDados())
+                    .build());
+        }
+
+        indicadorRepository.saveAll(entidades);
+
+        auditoriaService.registrar(
+                ator,
+                AcaoAuditoria.INDICADORES_IMPORTADOS,
+                marca,
+                String.format(
+                        "Pipeline Python ETL concluído: %d indicadores extraídos (%d mídias, %d pesquisas)",
+                        entidades.size(),
+                        etlResult.totalMidiaProcessada(),
+                        etlResult.totalPesquisaProcessada()
+                )
+        );
+
+        return entidades.stream().map(IndicadorResponse::de).toList();
+    }
+
+    @Transactional(readOnly = true)
     public RelatorioConsolidadoResponse consultarRelatorioConsolidado(UUID marcaId, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         Marca marca = marcaService.buscarEValidarAcessoMarca(marcaId, ator);
@@ -199,17 +240,5 @@ public class OperacaoPortalService {
                 perguntas,
                 indicadores
         );
-    }
-
-    private IndicadorRelatorio criarInd(Marca marca, String secao, String nome, double valor, String texto, String fonte) {
-        return IndicadorRelatorio.builder()
-                .marca(marca)
-                .evento(marca.getEvento())
-                .secao(secao)
-                .nomeIndicador(nome)
-                .valorNumerico(BigDecimal.valueOf(valor))
-                .valorTexto(texto)
-                .fonteDados(fonte)
-                .build();
     }
 }
