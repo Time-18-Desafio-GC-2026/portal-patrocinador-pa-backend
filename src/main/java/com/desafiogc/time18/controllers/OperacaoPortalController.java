@@ -70,6 +70,22 @@ public class OperacaoPortalController {
         return operacaoService.salvarPerguntaPesquisa(marcaId, request, logado);
     }
 
+    @GetMapping("/marcas/{marcaId}/pesquisa-perguntas")
+    @Tag(name = "7. Pesquisa e Relatórios")
+    @Operation(summary = "Lista as 3 perguntas personalizadas de uma marca específica")
+    public List<PerguntaPesquisaResponse> listarPerguntasDaMarca(@PathVariable UUID marcaId,
+                                                                 @AuthenticationPrincipal UsuarioAutenticado logado) {
+        return operacaoService.listarPerguntasPorMarca(marcaId, logado);
+    }
+
+    @GetMapping("/pesquisa-perguntas")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Tag(name = "7. Pesquisa e Relatórios")
+    @Operation(summary = "Lista todas as perguntas cadastradas pelos patrocinadores Master para a equipe RBS")
+    public List<PerguntaPesquisaResponse> listarTodasPerguntas(@AuthenticationPrincipal UsuarioAutenticado logado) {
+        return operacaoService.listarTodasPerguntasPesquisa(logado);
+    }
+
     @PostMapping("/marcas/{marcaId}/indicadores/importar-planilha-padrao")
     @PreAuthorize("hasRole('ADMIN')")
     @Tag(name = "7. Pesquisa e Relatórios")

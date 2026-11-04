@@ -87,6 +87,9 @@ public final class OperacaoPortalDtos {
 
     public record PerguntaPesquisaResponse(
             UUID id,
+            UUID marcaId,
+            String marcaNome,
+            Cota marcaCota,
             Integer numeroPergunta,
             String textoPergunta,
             String autorNome,
@@ -95,6 +98,9 @@ public final class OperacaoPortalDtos {
         public static PerguntaPesquisaResponse de(PerguntaPesquisa p) {
             return new PerguntaPesquisaResponse(
                     p.getId(),
+                    p.getMarca().getId(),
+                    p.getMarca().getNome(),
+                    p.getMarca().getCota(),
                     p.getNumeroPergunta(),
                     p.getTextoPergunta(),
                     p.getAutorNome(),

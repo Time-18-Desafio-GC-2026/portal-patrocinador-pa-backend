@@ -118,9 +118,15 @@ public class OperacaoPortalService {
 
     // ==================== 2. PESQUISA DE ATIVAÇÃO (ABA 6 - ATÉ 3 PERGUNTAS) ====================
 
+// ==================== 2. PESQUISA DE ATIVAÇÃO (ABA 6 - EXCLUSIVO COTA MASTER) ====================
+
     public PerguntaPesquisaResponse salvarPerguntaPesquisa(UUID marcaId, SalvarPerguntaPesquisaRequest req, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         Marca marca = marcaService.buscarEValidarAcessoMarca(marcaId, ator);
+
+        if (marca.getCota() != Cota.MASTER) {
+            throw ExcecaoApi.acessoNegado("Funcionalidade exclusiva para patrocinadores da cota Master.");
+        }
 
         PerguntaPesquisa pergunta = perguntaRepository.findByMarcaIdAndNumeroPergunta(marcaId, req.numeroPergunta())
                 .orElse(PerguntaPesquisa.builder()
@@ -133,10 +139,29 @@ public class OperacaoPortalService {
 
         perguntaRepository.save(pergunta);
         auditoriaService.registrar(ator, AcaoAuditoria.PERGUNTA_PESQUISA_SALVA, marca,
-                "Pergunta " + req.numeroPergunta() + " da pesquisa salva");
+                "Pergunta " + req.numeroPergunta() + " da pesquisa oficial salva");
         return PerguntaPesquisaResponse.de(pergunta);
     }
 
+    @Transactional(readOnly = true)
+    public List<PerguntaPesquisaResponse> listarPerguntasPorMarca(UUID marcaId, UsuarioAutenticado logado) {
+        Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
+        marcaService.buscarEValidarAcessoMarca(marcaId, ator);
+
+        return perguntaRepository.findByMarcaIdOrderByNumeroPerguntaAsc(marcaId)
+                .stream()
+                .map(PerguntaPesquisaResponse::de)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PerguntaPesquisaResponse> listarTodasPerguntasPesquisa(UsuarioAutenticado logado) {
+        autenticacaoService.buscarUsuarioAtivo(logado);
+        return perguntaRepository.findAll()
+                .stream()
+                .map(PerguntaPesquisaResponse::de)
+                .toList();
+    }
     // ==================== 3. RELATÓRIO CONSOLIDADO E INTEGRAÇÃO COM PYTHON ====================
 
     public IndicadorResponse adicionarIndicador(UUID marcaId, SalvarIndicadorRequest req, UsuarioAutenticado logado) {
