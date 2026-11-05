@@ -31,7 +31,7 @@ public class AuditoriaService {
         LogAuditoria log = LogAuditoria.builder()
                 .id(gerarIdCurtoUnico())
                 .atorId(ator.getId())
-                .atorNome(ator.getNome() != null && !ator.getNome().isBlank() ? ator.getNome() : ator.getEmail())
+                .atorNome(ator.getEmail()) // Garante que a coluna sempre exiba o e-mail do usuário
                 .atorPerfil(ator.getPerfil())
                 .atorMarcaNome(ator.getMarca() != null ? ator.getMarca().getNome() : null)
                 .acao(acao)

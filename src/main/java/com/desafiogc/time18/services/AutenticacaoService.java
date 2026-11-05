@@ -42,10 +42,13 @@ public class AutenticacaoService {
         // 3. Verifica se o usuário e a marca estão ativos
         validarUsuarioAtivo(usuario);
 
-        // 4. Registra o login na trilha de auditoria!
+        // 4. Atualiza a data/hora do último acesso diretamente no registro único do usuário
+        usuario.setPrimeiroAcessoEm(Instant.now());
+
+        // 5. Registra o login na trilha de auditoria (personalize o texto abaixo se desejar)
         auditoriaService.registrar(usuario, AcaoAuditoria.LOGIN_REALIZADO, usuario.getMarca(), "Acesso realizado na plataforma");
 
-        // 5. Gera o Token JWT assinado
+        // 6. Gera o Token JWT assinado
         String token = tokenService.gerarToken(usuario);
         return new SessaoResponse(token, "Bearer", UsuarioResponse.de(usuario));
     }
