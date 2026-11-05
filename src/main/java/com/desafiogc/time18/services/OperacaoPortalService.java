@@ -116,6 +116,18 @@ public class OperacaoPortalService {
         return MaterialResponse.de(material);
     }
 
+    public void excluirMaterial(UUID materialId, UsuarioAutenticado logado) {
+        Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> ExcecaoApi.naoEncontrado("Material não encontrado."));
+
+        marcaService.validarAcessoAMarca(ator, material.getMarca().getId());
+
+        auditoriaService.registrar(ator, AcaoAuditoria.MATERIAL_STATUS_ATUALIZADO, material.getMarca(),
+                "Material removido/substituído: " + material.getTitulo());
+        materialRepository.delete(material);
+    }
+
     // ==================== 2. PESQUISA DE ATIVAÇÃO (ABA 6 - ATÉ 3 PERGUNTAS) ====================
 
 // ==================== 2. PESQUISA DE ATIVAÇÃO (ABA 6 - EXCLUSIVO COTA MASTER) ====================

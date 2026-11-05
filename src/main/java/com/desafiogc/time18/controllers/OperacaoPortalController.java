@@ -61,6 +61,15 @@ public class OperacaoPortalController {
         return operacaoService.atualizarStatusMaterial(materialId, request.status(), logado);
     }
 
+    @DeleteMapping("/materiais/{materialId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Tag(name = "6. Arquivos")
+    @Operation(summary = "Remove um material, plano comercial ou versão anterior de contrato")
+    public void excluirMaterial(@PathVariable UUID materialId,
+                                @AuthenticationPrincipal UsuarioAutenticado logado) {
+        operacaoService.excluirMaterial(materialId, logado);
+    }
+
     @PostMapping("/marcas/{marcaId}/pesquisa-perguntas")
     @Tag(name = "7. Pesquisa e Relatórios", description = "Cadastro das 3 perguntas da pesquisa e extração automática do Relatório")
     @Operation(summary = "Salva uma das 3 perguntas personalizadas da Pesquisa de Ativação")
