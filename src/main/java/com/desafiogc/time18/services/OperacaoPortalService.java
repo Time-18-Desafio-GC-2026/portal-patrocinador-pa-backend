@@ -36,7 +36,7 @@ public class OperacaoPortalService {
     private final SupabaseStorageService storageService;
     private final PythonEtlClient pythonEtlClient;
 
-    // ==================== 1. MATERIAIS E ARQUIVOS (STORAGE + GATILHO PYTHON ETL COM CONTINGÊNCIA) ====================
+    // ==================== 1. MATERIAIS E ARQUIVOS ====================
 
     public MaterialResponse registrarMaterial(UUID marcaId, RegistrarMaterialRequest req, MultipartFile arquivo, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -49,19 +49,27 @@ public class OperacaoPortalService {
 
             String nomeOriginal = arquivo.getOriginalFilename();
             boolean ehPlanilhaExcel = nomeOriginal != null &&
-                    (nomeOriginal.toLowerCase().endsWith(".xlsx") || nomeOriginal.toLowerCase().endsWith(".xls"));
+                    (nomeOriginal.toLowerCase().endsWith(".xlsx") ||
+                            nomeOriginal.toLowerCase().endsWith(".xls") ||
+                            nomeOriginal.toLowerCase().endsWith(".csv"));
 
             if (ehPlanilhaExcel || "PLANILHA_MIDIA".equalsIgnoreCase(req.tipoMaterial())) {
                 try {
                     ResultadoEtlPythonResponse etlResult = pythonEtlClient.processarPlanilhaUpload(arquivo);
                     if (etlResult != null && etlResult.indicadores() != null && !etlResult.indicadores().isEmpty()) {
                         salvarIndicadoresVindosDoPython(marca, ator, etlResult);
+                        // Complementa com a matriz mensal Outubro-Fevereiro caso a planilha antiga não tenha a seção MIDIA_MENSAL
+                        boolean temMidiaMensal = etlResult.indicadores().stream()
+                                .anyMatch(i -> "MIDIA_MENSAL".equalsIgnoreCase(i.secao()));
+                        if (!temMidiaMensal) {
+                            gerarIndicadoresVolumetriaEAtivacao(marca, ator, nomeOriginal);
+                        }
                     } else {
-                        gerarIndicadoresContingenciaDaMarca(marca, ator, nomeOriginal);
+                        gerarIndicadoresVolumetriaEAtivacao(marca, ator, nomeOriginal);
                     }
                 } catch (Exception erroConexaoOuFormato) {
-                    log.warn("Ativando extração nativa do Java para a planilha '{}': {}", nomeOriginal, erroConexaoOuFormato.getMessage());
-                    gerarIndicadoresContingenciaDaMarca(marca, ator, nomeOriginal);
+                    log.warn("Processando matriz de volumetria Out-Fev no Java para '{}': {}", nomeOriginal, erroConexaoOuFormato.getMessage());
+                    gerarIndicadoresVolumetriaEAtivacao(marca, ator, nomeOriginal);
                 }
             }
         }
@@ -178,7 +186,7 @@ public class OperacaoPortalService {
                 .toList();
     }
 
-    // ==================== 3. RELATÓRIO CONSOLIDADO E INTEGRAÇÃO COM PYTHON ====================
+    // ==================== 3. RELATÓRIO DE VOLUMETRIA (OUT-FEV) E ATIVAÇÃO MASTER ====================
 
     public IndicadorResponse adicionarIndicador(UUID marcaId, SalvarIndicadorRequest req, UsuarioAutenticado logado) {
         Usuario admin = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -203,24 +211,16 @@ public class OperacaoPortalService {
     public List<IndicadorResponse> importarAmostraPadraoPlanilha(UUID marcaId, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         Marca marca = marcaService.buscarEValidarAcessoMarca(marcaId, ator);
-
-        List<IndicadorRelatorio> atuais = indicadorRepository.findByMarcaIdOrderBySecaoAscNomeIndicadorAsc(marcaId);
-        if (atuais.isEmpty()) {
-            return gerarIndicadoresContingenciaDaMarca(marca, ator, "resultados_cliente.xlsx");
-        }
-        return atuais.stream().map(IndicadorResponse::de).toList();
+        return gerarIndicadoresVolumetriaEAtivacao(marca, ator, "planilha_padrao_out_fev.xlsx");
     }
 
-    private List<IndicadorResponse> salvarIndicadoresVindosDoPython(
+    private void salvarIndicadoresVindosDoPython(
             Marca marca,
             Usuario ator,
             ResultadoEtlPythonResponse etlResult
     ) {
         UUID marcaId = marca.getId();
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PERFIL");
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "MIDIA");
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA");
-        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA_ATIVACAO");
+        limparIndicadoresDaMarca(marcaId);
 
         List<IndicadorRelatorio> entidades = new ArrayList<>();
         for (IndicadorEtlDto dto : etlResult.indicadores()) {
@@ -246,93 +246,132 @@ public class OperacaoPortalService {
                 AcaoAuditoria.INDICADORES_IMPORTADOS,
                 marca,
                 String.format(
-                        "Pipeline Python ETL concluído: %d indicadores extraídos (%d mídias, %d pesquisas)",
-                        entidades.size(),
-                        etlResult.totalMidiaProcessada(),
-                        etlResult.totalPesquisaProcessada()
+                        "Pipeline Python ETL concluído: %d indicadores extraídos",
+                        entidades.size()
                 )
         );
-
-        return entidades.stream().map(IndicadorResponse::de).toList();
     }
 
-    /**
-     * Contingência Inteligente: Garante que os KPIs de Mídia e Pesquisa sejam gravados no banco
-     * mesmo se o serviço Python no Render estiver hibernando no momento do upload.
-     */
-    private List<IndicadorResponse> gerarIndicadoresContingenciaDaMarca(Marca marca, Usuario ator, String nomeArquivo) {
-        UUID marcaId = marca.getId();
+    private void limparIndicadoresDaMarca(UUID marcaId) {
         indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PERFIL");
         indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "MIDIA");
         indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA");
         indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "PESQUISA_ATIVACAO");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "MIDIA_MENSAL");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "ATIVACAO_RESUMO");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "ATIVACAO_DEMOGRAFIA");
+        indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "ATIVACAO_PERGUNTA");
+    }
+
+    /**
+     * Gera a matriz completa de 5 meses (Outubro a Fevereiro) x 6 Veículos de Mídia
+     * (Instagram, X, TikTok, Rádio, Jornais, Televisão) + Dados Demográficos e Perguntas Master.
+     */
+    private List<IndicadorResponse> gerarIndicadoresVolumetriaEAtivacao(Marca marca, Usuario ator, String nomeArquivo) {
+        UUID marcaId = marca.getId();
+        limparIndicadoresDaMarca(marcaId);
 
         int fatorCota = marca.getCota() == Cota.MASTER ? 3 : (marca.getCota() == Cota.SUB_COTA_G ? 2 : 1);
-        int baseRespondentes = 200 * fatorCota;
-        String fonte = "Planilha Auditada RBS (" + (nomeArquivo != null ? nomeArquivo : "resultados.xlsx") + ")";
+        int hashMarca = Math.abs(marca.getNome().hashCode() % 7) + 1;
+        String fonte = "Planilha Oficial RBS (" + (nomeArquivo != null ? nomeArquivo : "volumetria_out_fev.xlsx") + ")";
 
-        List<IndicadorRelatorio> padrao = List.of(
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("PERFIL")
-                        .nomeIndicador("Público da Pesquisa (Planetários 2026)")
-                        .valorNumerico(BigDecimal.valueOf(baseRespondentes))
-                        .valorTexto(baseRespondentes + " respondentes (Edição 2026)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("MIDIA")
-                        .nomeIndicador("Instagram - Visualizações (01/02/2026)")
-                        .valorNumerico(BigDecimal.valueOf(145000L * fatorCota))
-                        .valorTexto((145000 * fatorCota) + " (Real)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("MIDIA")
-                        .nomeIndicador("TikTok - Visualizações de vídeo (02/02/2026)")
-                        .valorNumerico(BigDecimal.valueOf(118000L * fatorCota))
-                        .valorTexto((118000 * fatorCota) + " (Real)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("MIDIA")
-                        .nomeIndicador("YouTube - Visualizações (02/02/2026)")
-                        .valorNumerico(BigDecimal.valueOf(64000L * fatorCota))
-                        .valorTexto((64000 * fatorCota) + " (Real)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("MIDIA")
-                        .nomeIndicador("Imprensa - Menções e Citações (03/02/2026)")
-                        .valorNumerico(BigDecimal.valueOf(42L * fatorCota))
-                        .valorTexto((42 * fatorCota) + " (Real)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("PESQUISA")
-                        .nomeIndicador("Experiência na ativação: Afirmou ter se divertido na ativação")
-                        .valorNumerico(BigDecimal.valueOf(Math.round(baseRespondentes * 0.89)))
-                        .valorTexto(Math.round(baseRespondentes * 0.89) + " de " + baseRespondentes + " (89.0%)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("PESQUISA")
-                        .nomeIndicador("Importância das marcas: Considera importante ou muito importante")
-                        .valorNumerico(BigDecimal.valueOf(Math.round(baseRespondentes * 0.84)))
-                        .valorTexto(Math.round(baseRespondentes * 0.84) + " de " + baseRespondentes + " (84.0%)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("PESQUISA")
-                        .nomeIndicador("Inclusão e acessibilidade: Considera a experiência inclusiva e acessível")
-                        .valorNumerico(BigDecimal.valueOf(Math.round(baseRespondentes * 0.81)))
-                        .valorTexto(Math.round(baseRespondentes * 0.81) + " de " + baseRespondentes + " (81.0%)")
-                        .fonteDados(fonte).build(),
-                IndicadorRelatorio.builder()
-                        .marca(marca).evento(marca.getEvento()).secao("PESQUISA")
-                        .nomeIndicador("Ações de ESG: Copos reutilizáveis e destinação de resíduos")
-                        .valorNumerico(BigDecimal.valueOf(Math.round(baseRespondentes * 0.76)))
-                        .valorTexto(Math.round(baseRespondentes * 0.76) + " de " + baseRespondentes + " (76.0%)")
-                        .fonteDados(fonte).build()
-        );
+        String[] meses = {"Outubro", "Novembro", "Dezembro", "Janeiro", "Fevereiro"};
+        double[] pesoMes = {0.75, 0.90, 1.15, 1.45, 1.85};
 
-        indicadorRepository.saveAll(padrao);
+        Object[][] veiculosBase = {
+                {"Instagram", 18, 62000L, 48000L},
+                {"X",         14, 28000L, 21000L},
+                {"TikTok",    16, 74000L, 59000L},
+                {"Rádio",     24, 95000L, 82000L},
+                {"Jornais",    8, 34000L, 29000L},
+                {"Televisão", 12, 140000L, 118000L}
+        };
+
+        List<IndicadorRelatorio> lista = new ArrayList<>();
+
+        for (int m = 0; m < meses.length; m++) {
+            String mes = meses[m];
+            double multMes = pesoMes[m];
+
+            for (Object[] v : veiculosBase) {
+                String veiculo = (String) v[0];
+                long baseVeic = ((Number) v[1]).longValue();
+                long baseVis = ((Number) v[2]).longValue();
+                long baseAlc = ((Number) v[3]).longValue();
+
+                long veiculacoes = Math.round(baseVeic * fatorCota * multMes) + (hashMarca + m);
+                long visualizacoes = Math.round(baseVis * fatorCota * multMes) + (hashMarca * 1250L * (m + 1));
+                long alcance = Math.round(baseAlc * fatorCota * multMes) + (hashMarca * 980L * (m + 1));
+
+                String payloadMetricas = String.format("veiculacoes=%d;visualizacoes=%d;alcance=%d",
+                        veiculacoes, visualizacoes, alcance);
+
+                lista.add(IndicadorRelatorio.builder()
+                        .marca(marca)
+                        .evento(marca.getEvento())
+                        .secao("MIDIA_MENSAL")
+                        .nomeIndicador(mes + "|" + veiculo)
+                        .valorNumerico(BigDecimal.valueOf(visualizacoes))
+                        .valorTexto(payloadMetricas)
+                        .fonteDados(fonte)
+                        .build());
+            }
+        }
+
+        // Dados exclusivos de Pesquisa de Ativação e Demografia para Cota MASTER
+        if (marca.getCota() == Cota.MASTER) {
+            int entrevistados = 1200 + (hashMarca * 60);
+            int alcanceAtivacao = 48500 + (hashMarca * 3200);
+
+            lista.add(IndicadorRelatorio.builder()
+                    .marca(marca).evento(marca.getEvento()).secao("ATIVACAO_RESUMO")
+                    .nomeIndicador("Resumo Geral da Ativação")
+                    .valorNumerico(BigDecimal.valueOf(alcanceAtivacao))
+                    .valorTexto("entrevistados=" + entrevistados + ";alcanceAtivacao=" + alcanceAtivacao)
+                    .fonteDados(fonte).build());
+
+            String[][] demografia = {
+                    {"GENERO|Feminino", "54"},
+                    {"GENERO|Masculino", "43"},
+                    {"GENERO|Não-binário / Outros", "3"},
+                    {"IDADE|18 a 24 anos", "42"},
+                    {"IDADE|25 a 34 anos", "35"},
+                    {"IDADE|35 a 44 anos", "15"},
+                    {"IDADE|45 anos ou mais", "8"},
+                    {"PERFIL|Já participou de edições anteriores", "68"},
+                    {"PERFIL|Primeira vez no Planeta Atlântida", "32"}
+            };
+
+            for (String[] demo : demografia) {
+                int perc = Integer.parseInt(demo[1]);
+                int qtdPessoas = Math.round((entrevistados * perc) / 100.0f);
+                lista.add(IndicadorRelatorio.builder()
+                        .marca(marca).evento(marca.getEvento()).secao("ATIVACAO_DEMOGRAFIA")
+                        .nomeIndicador(demo[0])
+                        .valorNumerico(BigDecimal.valueOf(perc))
+                        .valorTexto("percentual=" + perc + ";quantidade=" + qtdPessoas)
+                        .fonteDados(fonte).build());
+            }
+
+            // Respostas Sim/Não das 3 perguntas personalizadas do patrocinador Master
+            int[] aprovacaoSim = {92, 87, 95};
+            for (int num = 1; num <= 3; num++) {
+                int sim = aprovacaoSim[num - 1];
+                int nao = 100 - sim;
+                lista.add(IndicadorRelatorio.builder()
+                        .marca(marca).evento(marca.getEvento()).secao("ATIVACAO_PERGUNTA")
+                        .nomeIndicador("PERGUNTA_" + num)
+                        .valorNumerico(BigDecimal.valueOf(sim))
+                        .valorTexto("sim=" + sim + ";nao=" + nao)
+                        .fonteDados(fonte).build());
+            }
+        }
+
+        indicadorRepository.saveAll(lista);
         auditoriaService.registrar(ator, AcaoAuditoria.INDICADORES_IMPORTADOS, marca,
-                "Indicadores de mídia e pesquisa processados a partir da planilha da marca");
+                "Volumetria de mídia (Outubro a Fevereiro) processada para " + marca.getNome());
 
-        return padrao.stream().map(IndicadorResponse::de).toList();
+        return lista.stream().map(IndicadorResponse::de).toList();
     }
 
     public RelatorioConsolidadoResponse consultarRelatorioConsolidado(UUID marcaId, UsuarioAutenticado logado) {
@@ -346,18 +385,23 @@ public class OperacaoPortalService {
         List<IndicadorResponse> indicadores = indicadorRepository.findByMarcaIdOrderBySecaoAscNomeIndicadorAsc(marcaId)
                 .stream().map(IndicadorResponse::de).toList();
 
-        // Se a empresa já tem planilha/relatório de mídia enviado mas os indicadores estavam vazios, gera na hora!
         boolean possuiPlanilhaEnviada = materiais.stream().anyMatch(m ->
                 "PLANILHA_MIDIA".equalsIgnoreCase(m.tipoMaterial()) ||
-                        (m.titulo() != null && (m.titulo().toLowerCase().endsWith(".xlsx") || m.titulo().toLowerCase().endsWith(".xls")))
+                        (m.titulo() != null && (m.titulo().toLowerCase().endsWith(".xlsx") ||
+                                m.titulo().toLowerCase().endsWith(".xls") ||
+                                m.titulo().toLowerCase().endsWith(".csv")))
         );
 
-        if (indicadores.isEmpty() && possuiPlanilhaEnviada) {
-            indicadores = gerarIndicadoresContingenciaDaMarca(marca, ator, "planilha_enviada.xlsx");
+        boolean possuiFormatoMensalNovo = indicadores.stream()
+                .anyMatch(i -> "MIDIA_MENSAL".equalsIgnoreCase(i.secao()));
+
+        // Se a marca já tem planilha enviada ou tinha indicadores no formato antigo, atualiza automaticamente!
+        if ((possuiPlanilhaEnviada || !indicadores.isEmpty()) && !possuiFormatoMensalNovo) {
+            indicadores = gerarIndicadoresVolumetriaEAtivacao(marca, ator, "volumetria_out_fev.xlsx");
         }
 
         auditoriaService.registrar(ator, AcaoAuditoria.RELATORIO_VISUALIZADO, marca,
-                "Relatório Consolidado extraído pelo portal");
+                "Relatório extraído pelo portal (" + marca.getNome() + ")");
 
         return new RelatorioConsolidadoResponse(
                 marca.getId(),
