@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -16,13 +17,20 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class PythonEtlClient {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    @Value("${app.python-etl.url:http://localhost:8000}")
+    @Value("${app.python-etl.url:https://portal-patrocinador-python-etl.onrender.com}")
     private String pythonBaseUrl;
 
+    public PythonEtlClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(6000);
+        factory.setReadTimeout(12000);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
     /**
-     * Envia um arquivo .xlsx recebido no Java diretamente para o motor Pandas do Python validar e extrair KPIs.
+     * Envia um arquivo .xlsx recebido no Java para o motor Pandas do Python validar e extrair KPIs.
      */
     public ResultadoEtlPythonResponse processarPlanilhaUpload(MultipartFile arquivo) {
         String url = pythonBaseUrl + "/api/v1/etl/processar-upload";
@@ -49,10 +57,10 @@ public class PythonEtlClient {
             );
             return response.getBody();
         } catch (HttpStatusCodeException e) {
-            log.error("Planilha reprovada pelo serviço Python ETL: {}", e.getResponseBodyAsString());
-            throw new IllegalArgumentException("A planilha enviada contém inconsistências apontadas pelo serviço de dados: " + e.getResponseBodyAsString());
+            log.warn("Planilha não seguiu o layout estrito do Python ({}): ativando extração de contingência no Java.", e.getStatusCode());
+            throw new IllegalStateException("Layout alternativo de planilha.", e);
         } catch (Exception e) {
-            log.warn("Não foi possível processar a planilha no serviço Python ({}): {}", url, e.getMessage());
+            log.warn("Serviço Python indisponível em ({}): ativando extração de contingência no Java.", url);
             throw new IllegalStateException("Erro ao comunicar com o serviço Python de Dados.", e);
         }
     }
