@@ -15,9 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-/**
- * Garante que o SUPERADMIN da RBS esteja cadastrado no banco de dados assim que o servidor liga.
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -56,7 +54,7 @@ public class InicializadorSuperadmin implements ApplicationRunner {
             return;
         }
 
-        // Mantém os dados do superadmin sincronizados caso mudem no application.properties
+        
         superadmin.setEmail(email);
         superadmin.setNome(nomeSuperadmin);
         superadmin.setAtivo(true);

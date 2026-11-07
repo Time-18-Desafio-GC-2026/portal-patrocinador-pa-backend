@@ -16,10 +16,7 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Serviço responsável por emitir e validar Tokens JWT (algoritmo HMAC-SHA256).
- * Princípio da Responsabilidade Única (S do SOLID): só lida com criptografia de tokens.
- */
+
 @Service
 public class TokenService {
 
@@ -38,9 +35,7 @@ public class TokenService {
         this.expiracaoHoras = expiracaoHoras;
     }
 
-    /**
-     * Cria um Token JWT assinado contendo ID, e-mail, perfil e marcaId do usuário.
-     */
+    
     public String gerarToken(Usuario usuario) {
         Instant agora = Instant.now();
 
@@ -53,7 +48,7 @@ public class TokenService {
                 .claim("perfil", usuario.getPerfil().name())
                 .claim("precisaTrocarSenha", usuario.isPrecisaTrocarSenha());
 
-        // Se for um patrocinador, crava o ID da marca dele dentro do token JWT!
+        
         if (usuario.getMarca() != null) {
             claims.claim("marcaId", usuario.getMarca().getId().toString());
         }
@@ -62,9 +57,7 @@ public class TokenService {
         return encoder.encode(JwtEncoderParameters.from(header, claims.build())).getTokenValue();
     }
 
-    /**
-     * Lê um Token JWT recebido no header Authorization e devolve o UsuarioAutenticado (se o token for válido).
-     */
+    
     public Optional<UsuarioAutenticado> validarToken(String token) {
         try {
             Jwt jwt = decoder.decode(token);
@@ -79,7 +72,7 @@ public class TokenService {
                     Boolean.TRUE.equals(jwt.getClaimAsBoolean("precisaTrocarSenha"))
             ));
         } catch (JwtException | IllegalArgumentException e) {
-            // Token expirado, adulterado ou malformado
+            
             return Optional.empty();
         }
     }

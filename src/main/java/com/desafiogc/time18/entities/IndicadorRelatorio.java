@@ -26,23 +26,23 @@ public class IndicadorRelatorio {
     @Column(nullable = false, length = 100)
     private String evento;
 
-    // Seção do relatório: MIDIA, PESQUISA_ATIVACAO, REDES_SOCIAIS, COMPROVACAO
+    
     @Column(nullable = false, length = 50)
     private String secao;
 
-    // Nome da métrica (ex: "Inserções TV", "Alcance Digital", "Aprovação do Público %")
+    
     @Column(name = "nome_indicador", nullable = false, length = 150)
     private String nomeIndicador;
 
-    // Número usado pelo Front-end para desenhar os gráficos de barras/linhas
+    
     @Column(name = "valor_numerico", precision = 15, scale = 2)
     private BigDecimal valorNumerico;
 
-    // Observação ou resultado qualitativo
+    
     @Column(name = "valor_texto", length = 500)
     private String valorTexto;
 
-    // Explica a origem do indicador (Critério de Aceite de "Modelo do relatório" da Entrega 2)
+    
     @Column(name = "fonte_dados", nullable = false, length = 150)
     private String fonteDados;
 

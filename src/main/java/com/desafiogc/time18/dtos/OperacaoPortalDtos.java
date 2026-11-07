@@ -11,12 +11,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * DTOs para Materiais (Abas 1, 2, 3 e 7), Pesquisa de Ativação (Aba 6) e Relatório Consolidado V1.
- */
+
 public final class OperacaoPortalDtos {
 
-    // 1. Registro de Material ou Link (Critério: "registrado e consultado com autor e data da atualização")
+    
     public record RegistrarMaterialRequest(
             @NotBlank(message = "Informe o título do material.")
             String titulo,
@@ -74,7 +72,7 @@ public final class OperacaoPortalDtos {
         }
     }
 
-    // 2. Perguntas Personalizadas da Pesquisa de Ativação (Aba 6 - Direito a 3 perguntas no TAP)
+    
     public record SalvarPerguntaPesquisaRequest(
             @NotNull(message = "Informe o número da pergunta (1, 2 ou 3).")
             @Min(value = 1, message = "O número da pergunta deve ser entre 1 e 3.")
@@ -109,7 +107,7 @@ public final class OperacaoPortalDtos {
         }
     }
 
-    // 3. Indicadores e Relatório Consolidado V1 (Integração Python ETL -> Java -> Portal)
+    
     public record SalvarIndicadorRequest(
             @NotBlank(message = "Informe a seção (MIDIA, PESQUISA_ATIVACAO, REDES_SOCIAIS, ESG).")
             String secao,
@@ -146,7 +144,7 @@ public final class OperacaoPortalDtos {
         }
     }
 
-    // Entrega tudo consolidado em 1 clique para o Patrocinador!
+    
     public record RelatorioConsolidadoResponse(
             UUID marcaId,
             String marcaNome,

@@ -6,12 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * DTOs para o FAQ Dinâmico (ordenado por mais acessadas) e Alertas Globais de novas respostas.
- */
+
 public final class FaqDtos {
 
-    // Patrocinador envia uma nova dúvida para a RBS
+    
     public record NovaPerguntaFaqRequest(
             @NotBlank(message = "Escreva a sua dúvida.")
             String pergunta,
@@ -20,7 +18,7 @@ public final class FaqDtos {
             String categoria
     ) {}
 
-    // Admin RBS redige a resposta e publica no FAQ
+    
     public record ResponderFaqRequest(
             @NotBlank(message = "Escreva a resposta oficial da RBS.")
             String resposta,
@@ -39,7 +37,7 @@ public final class FaqDtos {
             String respondidoPor,
             Instant criadoEm,
             Instant respondidoEm,
-            String mensagemAlerta // Usado no mural de alertas: "Nova resposta adicionada ao FAQ: [Pergunta]"
+            String mensagemAlerta 
     ) {
         public static FaqResponse de(DuvidaFaq f) {
             String alerta = f.isPublica() && "RESPONDIDA".equals(f.getStatus())

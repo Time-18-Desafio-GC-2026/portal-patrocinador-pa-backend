@@ -21,14 +21,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Configuração central de Segurança da API REST.
- * - Desativa CSRF e Sessões em memória (pois usamos Token JWT Stateless no Header Authorization).
- * - Libera CORS para o Front-end conversar com o Java sem bloqueios do navegador.
- * - Libera acesso público apenas ao Login e à documentação do Swagger.
- */
+
 @Configuration
-@EnableMethodSecurity // Permite usar @PreAuthorize("hasRole('ADMIN')") nos Controllers!
+@EnableMethodSecurity 
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -41,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Rotas públicas (Login e Swagger UI)
+                        
                         .requestMatchers(
                                 "/auth/login",
                                 "/swagger-ui/**",
@@ -49,7 +44,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
-                        // Todas as demais rotas exigem um Token JWT válido!
+                        
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -64,13 +59,13 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Algoritmo BCrypt para criptografar senhas antes de salvar no banco
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Desativa aquele "Using generated security password" que aparecia no console!
+    
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> {
@@ -78,7 +73,7 @@ public class SecurityConfig {
         };
     }
 
-    // Libera o Front-end (React/Vue/HTML local ou em nuvem) para chamar a API
+    
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

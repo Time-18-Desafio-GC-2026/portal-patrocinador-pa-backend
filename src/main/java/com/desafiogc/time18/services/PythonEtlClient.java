@@ -29,9 +29,7 @@ public class PythonEtlClient {
         this.restTemplate = new RestTemplate(factory);
     }
 
-    /**
-     * Envia um arquivo .xlsx recebido no Java para o motor Pandas do Python validar e extrair KPIs.
-     */
+    
     public ResultadoEtlPythonResponse processarPlanilhaUpload(MultipartFile arquivo) {
         String url = pythonBaseUrl + "/api/v1/etl/processar-upload";
         try {

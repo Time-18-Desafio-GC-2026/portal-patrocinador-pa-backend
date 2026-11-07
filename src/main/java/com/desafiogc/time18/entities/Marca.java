@@ -21,7 +21,7 @@ public class Marca {
     @Column(nullable = false, length = 150)
     private String nome;
 
-    // Armazena apenas os 14 números do CNPJ (validados antes de salvar)
+    
     @Column(nullable = false, unique = true, length = 14)
     private String cnpj;
 
@@ -29,11 +29,11 @@ public class Marca {
     @Column(nullable = false, length = 20)
     private Cota cota;
 
-    // Vínculo explícito com o evento (exigido no critério "Diagnóstico dos dados" da Entrega 2)
+    
     @Column(nullable = false, length = 100)
     private String evento;
 
-    // Senha inicial criptografada para os novos usuários desta marca
+    
     @Column(name = "senha_padrao_hash", nullable = false, length = 100)
     private String senhaPadraoHash;
 
@@ -46,7 +46,7 @@ public class Marca {
     @Column(name = "atualizado_em", nullable = false)
     private Instant atualizadoEm;
 
-    // Executado automaticamente pelo JPA antes de dar INSERT no banco
+    
     @PrePersist
     void aoCriar() {
         criadoEm = Instant.now();
@@ -56,7 +56,7 @@ public class Marca {
         }
     }
 
-    // Executado automaticamente pelo JPA antes de dar UPDATE no banco
+    
     @PreUpdate
     void aoAtualizar() {
         atualizadoEm = Instant.now();

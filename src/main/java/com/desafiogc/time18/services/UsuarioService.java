@@ -26,10 +26,7 @@ public class UsuarioService {
     private final AutenticacaoService autenticacaoService;
     private final AuditoriaService auditoriaService;
 
-    /**
-     * Admin RBS cadastra o e-mail de um patrocinador na Allow-list de uma marca específica.
-     * O usuário nasce com a senha padrão daquela marca e precisaTrocarSenha = true.
-     */
+    
     public UsuarioResponse criarPatrocinador(UUID marcaId, CriarPatrocinadorRequest request, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         Marca marca = marcaRepository.findById(marcaId)
@@ -57,9 +54,7 @@ public class UsuarioService {
         return UsuarioResponse.de(novoPatrocinador);
     }
 
-    /**
-     * Superadmin cria um novo Administrador da RBS.
-     */
+    
     public UsuarioResponse criarAdmin(CriarAdminRequest request, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         ValidadorUtils.validarSenha(request.senhaInicial());

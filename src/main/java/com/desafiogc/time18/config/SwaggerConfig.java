@@ -8,10 +8,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Configura o Swagger UI para exibir o botão "Authorize" (Bearer Token JWT)
- * e documentar oficialmente a API do Portal do Patrocinador - Planeta Atlântida.
- */
+
 @Configuration
 public class SwaggerConfig {
 

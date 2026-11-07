@@ -9,19 +9,17 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * DTOs para cadastro de e-mails liberados (Allow-list) de Patrocinadores e Admins RBS.
- */
+
 public final class UsuarioDtos {
 
-    // Admin RBS libera um novo e-mail de patrocinador para uma marca (usa a senha padrão da marca)
+    
     public record CriarPatrocinadorRequest(
             @NotBlank(message = "Informe o e-mail do patrocinador/agência.")
             @Email(message = "E-mail inválido.")
             String email
     ) {}
 
-    // Superadmin RBS cria um novo membro do time B2B (Admin RBS)
+    
     public record CriarAdminRequest(
             @NotBlank(message = "Informe o e-mail do administrador RBS.")
             @Email(message = "E-mail inválido.")
@@ -43,7 +41,7 @@ public final class UsuarioDtos {
             String novaSenhaTemporaria
     ) {}
 
-    // Dados seguros do usuário devolvidos no JSON (inclui nome e cota da marca para ajudar o Front-end a ocultar blocos!)
+    
     public record UsuarioResponse(
             UUID id,
             String email,

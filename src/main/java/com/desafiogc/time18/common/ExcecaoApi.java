@@ -13,7 +13,7 @@ public class ExcecaoApi extends RuntimeException {
         this.status = status;
     }
 
-    // Atalhos semânticos para facilitar a leitura nos Services:
+    
     public static ExcecaoApi dadosInvalidos(String msg) { return new ExcecaoApi(HttpStatus.BAD_REQUEST, msg); }
     public static ExcecaoApi naoAutenticado(String msg) { return new ExcecaoApi(HttpStatus.UNAUTHORIZED, msg); }
     public static ExcecaoApi acessoNegado(String msg)   { return new ExcecaoApi(HttpStatus.FORBIDDEN, msg); }

@@ -36,7 +36,7 @@ public class OperacaoPortalService {
     private final SupabaseStorageService storageService;
     private final PythonEtlClient pythonEtlClient;
 
-    // ==================== 1. MATERIAIS E ARQUIVOS ====================
+    
 
     public MaterialResponse registrarMaterial(UUID marcaId, RegistrarMaterialRequest req, MultipartFile arquivo, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -58,7 +58,7 @@ public class OperacaoPortalService {
                     ResultadoEtlPythonResponse etlResult = pythonEtlClient.processarPlanilhaUpload(arquivo);
                     if (etlResult != null && etlResult.indicadores() != null && !etlResult.indicadores().isEmpty()) {
                         salvarIndicadoresVindosDoPython(marca, ator, etlResult);
-                        // Complementa com a matriz mensal Outubro-Fevereiro caso a planilha antiga não tenha a seção MIDIA_MENSAL
+                        
                         boolean temMidiaMensal = etlResult.indicadores().stream()
                                 .anyMatch(i -> "MIDIA_MENSAL".equalsIgnoreCase(i.secao()));
                         if (!temMidiaMensal) {
@@ -141,7 +141,7 @@ public class OperacaoPortalService {
         materialRepository.delete(material);
     }
 
-    // ==================== 2. PESQUISA DE ATIVAÇÃO (ABA 6 - EXCLUSIVO COTA MASTER) ====================
+    
 
     public PerguntaPesquisaResponse salvarPerguntaPesquisa(UUID marcaId, SalvarPerguntaPesquisaRequest req, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -186,7 +186,7 @@ public class OperacaoPortalService {
                 .toList();
     }
 
-    // ==================== 3. RELATÓRIO DE VOLUMETRIA (OUT-FEV) E ATIVAÇÃO MASTER ====================
+    
 
     public IndicadorResponse adicionarIndicador(UUID marcaId, SalvarIndicadorRequest req, UsuarioAutenticado logado) {
         Usuario admin = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -263,10 +263,7 @@ public class OperacaoPortalService {
         indicadorRepository.deleteByMarcaIdAndSecao(marcaId, "ATIVACAO_PERGUNTA");
     }
 
-    /**
-     * Gera a matriz completa de 5 meses (Outubro a Fevereiro) x 6 Veículos de Mídia
-     * (Instagram, X, TikTok, Rádio, Jornais, Televisão) + Dados Demográficos e Perguntas Master.
-     */
+    
     private List<IndicadorResponse> gerarIndicadoresVolumetriaEAtivacao(Marca marca, Usuario ator, String nomeArquivo) {
         UUID marcaId = marca.getId();
         limparIndicadoresDaMarca(marcaId);
@@ -318,7 +315,7 @@ public class OperacaoPortalService {
             }
         }
 
-        // Dados exclusivos de Pesquisa de Ativação e Demografia para Cota MASTER
+        
         if (marca.getCota() == Cota.MASTER) {
             int entrevistados = 1200 + (hashMarca * 60);
             int alcanceAtivacao = 48500 + (hashMarca * 3200);
@@ -353,7 +350,7 @@ public class OperacaoPortalService {
                         .fonteDados(fonte).build());
             }
 
-            // Respostas Sim/Não das 3 perguntas personalizadas do patrocinador Master
+            
             int[] aprovacaoSim = {92, 87, 95};
             for (int num = 1; num <= 3; num++) {
                 int sim = aprovacaoSim[num - 1];
@@ -395,7 +392,7 @@ public class OperacaoPortalService {
         boolean possuiFormatoMensalNovo = indicadores.stream()
                 .anyMatch(i -> "MIDIA_MENSAL".equalsIgnoreCase(i.secao()));
 
-        // Se a marca já tem planilha enviada ou tinha indicadores no formato antigo, atualiza automaticamente!
+        
         if ((possuiPlanilhaEnviada || !indicadores.isEmpty()) && !possuiFormatoMensalNovo) {
             indicadores = gerarIndicadoresVolumetriaEAtivacao(marca, ator, "volumetria_out_fev.xlsx");
         }

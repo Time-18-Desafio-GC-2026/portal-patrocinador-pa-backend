@@ -15,10 +15,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Serviço central de Auditoria e Histórico.
- * Cada chamada a registrar() cria uma NOVA linha imutável na tabela log_auditoria.
- */
+
 @Service
 @RequiredArgsConstructor
 public class AuditoriaService {
@@ -31,7 +28,7 @@ public class AuditoriaService {
         LogAuditoria log = LogAuditoria.builder()
                 .id(gerarIdCurtoUnico())
                 .atorId(ator.getId())
-                .atorNome(ator.getEmail()) // Garante que a coluna sempre exiba o e-mail do usuário
+                .atorNome(ator.getEmail()) 
                 .atorPerfil(ator.getPerfil())
                 .atorMarcaNome(ator.getMarca() != null ? ator.getMarca().getNome() : null)
                 .acao(acao)
@@ -43,11 +40,7 @@ public class AuditoriaService {
         logRepository.save(log);
     }
 
-    /**
-     * Consulta o histórico de auditoria respeitando o isolamento de marcas:
-     * - ADMIN/SUPERADMIN RBS: Pode ver logs de todas as marcas ou filtrar por uma marca específica.
-     * - PATROCINADOR: Só vê os logs da PRÓPRIA marca, e o nome individual do funcionário da RBS é mascarado como "Administrador RBS".
-     */
+    
     @Transactional(readOnly = true)
     public List<LogAuditoriaResponse> listarHistorico(UsuarioAutenticado logado, UUID filtroMarcaId) {
         boolean ehPatrocinador = logado.perfil() == Perfil.PATROCINADOR;
@@ -56,7 +49,7 @@ public class AuditoriaService {
             if (logado.marcaId() == null) {
                 throw ExcecaoApi.acessoNegado("Patrocinador sem marca vinculada.");
             }
-            // Se o patrocinador tentar passar o ID de outra marca no filtro, bloqueamos!
+            
             if (filtroMarcaId != null && !filtroMarcaId.equals(logado.marcaId())) {
                 throw ExcecaoApi.acessoNegado("Acesso negado: você só pode consultar o histórico da sua própria marca.");
             }
@@ -66,7 +59,7 @@ public class AuditoriaService {
                     .toList();
         }
 
-        // Se for Admin da RBS:
+        
         List<LogAuditoria> logs = (filtroMarcaId != null)
                 ? logRepository.findByMarcaIdOrderByCriadoEmDesc(filtroMarcaId)
                 : logRepository.findAllByOrderByCriadoEmDesc();

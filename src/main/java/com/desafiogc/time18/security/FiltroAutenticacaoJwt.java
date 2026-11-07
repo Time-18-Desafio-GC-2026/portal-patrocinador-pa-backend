@@ -18,10 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Filtro executado uma única vez por requisição HTTP.
- * Extrai o token JWT do cabeçalho "Authorization: Bearer <token>" e autentica o usuário no Spring Security.
- */
+
 @Component
 @RequiredArgsConstructor
 public class FiltroAutenticacaoJwt extends OncePerRequestFilter {
@@ -58,10 +55,7 @@ public class FiltroAutenticacaoJwt extends OncePerRequestFilter {
         return Optional.empty();
     }
 
-    /**
-     * Traduz o Perfil do nosso banco para as Roles do Spring Security.
-     * O SUPERADMIN recebe também ROLE_ADMIN para poder executar todas as ações administrativas da RBS.
-     */
+    
     private List<GrantedAuthority> mapearPermissoes(Perfil perfil) {
         return switch (perfil) {
             case SUPERADMIN -> List.of(

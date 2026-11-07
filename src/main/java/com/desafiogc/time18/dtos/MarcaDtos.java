@@ -9,9 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * DTOs para gestão de Marcas Patrocinadoras e suas Cotas (MASTER, SUB_COTA_G, SUB_COTA).
- */
+
 public final class MarcaDtos {
 
     public record CriarMarcaRequest(
@@ -46,7 +44,7 @@ public final class MarcaDtos {
             String novaSenhaPadrao
     ) {}
 
-    // O que a API devolve (nunca expõe o hash da senha padrão!)
+    
     public record MarcaResponse(
             UUID id,
             String nome,

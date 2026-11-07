@@ -30,25 +30,25 @@ public class AutenticacaoService {
     public SessaoResponse login(LoginRequest request) {
         String email = ValidadorUtils.normalizarEmail(request.email());
 
-        // 1. Verifica se o e-mail consta na Allow-list (tabela usuario)
+        
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> ExcecaoApi.naoAutenticado("E-mail ou senha inválidos (ou e-mail não autorizado pela RBS)."));
 
-        // 2. Confere o hash da senha com BCrypt
+        
         if (!passwordEncoder.matches(request.senha(), usuario.getSenhaHash())) {
             throw ExcecaoApi.naoAutenticado("E-mail ou senha inválidos.");
         }
 
-        // 3. Verifica se o usuário e a marca estão ativos
+        
         validarUsuarioAtivo(usuario);
 
-        // 4. Atualiza a data/hora do último acesso diretamente no registro único do usuário
+        
         usuario.setPrimeiroAcessoEm(Instant.now());
 
-        // 5. Registra o login na trilha de auditoria (personalize o texto abaixo se desejar)
+        
         auditoriaService.registrar(usuario, AcaoAuditoria.LOGIN_REALIZADO, usuario.getMarca(), "Acesso realizado na plataforma");
 
-        // 6. Gera o Token JWT assinado
+        
         String token = tokenService.gerarToken(usuario);
         return new SessaoResponse(token, "Bearer", UsuarioResponse.de(usuario));
     }

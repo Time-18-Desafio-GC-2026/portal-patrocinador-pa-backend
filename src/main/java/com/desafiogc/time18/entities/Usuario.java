@@ -31,7 +31,7 @@ public class Usuario {
     @Column(nullable = false, length = 20)
     private Perfil perfil;
 
-    // Se for PATROCINADOR, aponta para a Marca dele. Se for ADMIN da RBS, fica null.
+    
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "marca_id")
     private Marca marca;
@@ -39,7 +39,7 @@ public class Usuario {
     @Column(nullable = false)
     private boolean ativo;
 
-    // Quando true, obriga o patrocinador a definir sua senha pessoal no primeiro acesso
+    
     @Column(name = "precisa_trocar_senha", nullable = false)
     private boolean precisaTrocarSenha;
 

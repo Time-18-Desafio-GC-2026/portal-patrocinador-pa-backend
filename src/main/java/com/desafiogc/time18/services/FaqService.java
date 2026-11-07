@@ -24,21 +24,21 @@ public class FaqService {
     private final AutenticacaoService autenticacaoService;
     private final AuditoriaService auditoriaService;
 
-    // 1. Lista o FAQ público ordenado pelas perguntas MAIS ACESSADAS pelos patrocinadores!
+    
     @Transactional(readOnly = true)
     public List<FaqResponse> listarFaqMaisAcessadas() {
         return faqRepository.findByPublicaTrueAndStatusOrderByVisualizacoesDesc("RESPONDIDA")
                 .stream().map(FaqResponse::de).toList();
     }
 
-    // 2. Mural de Alertas Globais: retorna as últimas respostas adicionadas ao FAQ para avisar todos os patrocinadores!
+    
     @Transactional(readOnly = true)
     public List<FaqResponse> listarAlertasNovasRespostas() {
         return faqRepository.findTop5ByPublicaTrueAndStatusOrderByRespondidoEmDesc("RESPONDIDA")
                 .stream().map(FaqResponse::de).toList();
     }
 
-    // 3. Quando um usuário clica para ler um artigo do FAQ, soma +1 visualização e grava na auditoria!
+    
     public FaqResponse visualizarArtigoFaq(UUID id, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
         DuvidaFaq duvida = faqRepository.findById(id)
@@ -50,7 +50,7 @@ public class FaqService {
         return FaqResponse.de(duvida);
     }
 
-    // 4. Patrocinador envia uma nova pergunta para a RBS responder
+    
     public FaqResponse enviarNovaPergunta(NovaPerguntaFaqRequest request, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
 
@@ -70,7 +70,7 @@ public class FaqService {
         return FaqResponse.de(nova);
     }
 
-    // 5. Admin RBS responde à dúvida e publica no FAQ (disparando o alerta global para todas as marcas!)
+    
     public FaqResponse responderDuvida(UUID id, ResponderFaqRequest request, UsuarioAutenticado logado) {
         Usuario admin = autenticacaoService.buscarUsuarioAtivo(logado);
         DuvidaFaq duvida = faqRepository.findById(id)
@@ -87,7 +87,7 @@ public class FaqService {
         return FaqResponse.de(duvida);
     }
 
-    // 6. Admin RBS lista todas as dúvidas pendentes de resposta
+    
     @Transactional(readOnly = true)
     public List<FaqResponse> listarPendentesRbs() {
         return faqRepository.findByStatusOrderByCriadoEmAsc("PENDENTE")

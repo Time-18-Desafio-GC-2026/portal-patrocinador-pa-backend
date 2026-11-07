@@ -51,11 +51,7 @@ public class MarcaService {
         return MarcaResponse.de(marca);
     }
 
-    /**
-     * Listagem de Marcas:
-     * - ADMIN RBS: Vê todas as marcas do evento.
-     * - PATROCINADOR: Retorna exclusivamente a própria marca dele!
-     */
+    
     @Transactional(readOnly = true)
     public List<MarcaResponse> listar(Boolean ativa, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -70,10 +66,7 @@ public class MarcaService {
         return marcas.stream().map(MarcaResponse::de).toList();
     }
 
-    /**
-     * Consulta de Marca por ID (CRITÉRIO DE ACEITE DE ISOLAMENTO V1):
-     * Se o Patrocinador A tentar buscar o ID da Marca B pela API, recebe 403 Forbidden!
-     */
+    
     @Transactional(readOnly = true)
     public MarcaResponse buscarPorId(UUID id, UsuarioAutenticado logado) {
         Usuario ator = autenticacaoService.buscarUsuarioAtivo(logado);
@@ -146,7 +139,7 @@ public class MarcaService {
         marcaRepository.delete(marca);
     }
 
-    // Método auxiliar reutilizado pelos serviços de Materiais, Pesquisa e Relatórios para blindar o isolamento!
+    
     public Marca buscarEValidarAcessoMarca(UUID marcaId, Usuario ator) {
         validarAcessoAMarca(ator, marcaId);
         return buscarEntidade(marcaId);

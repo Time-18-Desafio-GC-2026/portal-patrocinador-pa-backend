@@ -22,7 +22,7 @@ public class PerguntaPesquisa {
     @JoinColumn(name = "marca_id", nullable = false)
     private Marca marca;
 
-    // Número de 1 a 3 (direito do patrocinador no plano comercial)
+    
     @Column(name = "numero_pergunta", nullable = false)
     private Integer numeroPergunta;
 

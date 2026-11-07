@@ -3,9 +3,7 @@ package com.desafiogc.time18.common;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-/**
- * Funções utilitárias para limpar e validar CNPJ, e-mails e senhas.
- */
+
 public final class ValidadorUtils {
 
     private static final int[] PESOS_PRIMEIRO_DIGITO = {5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
@@ -13,22 +11,22 @@ public final class ValidadorUtils {
 
     private ValidadorUtils() {}
 
-    // Padroniza e-mail sempre em letras minúsculas e sem espaços nas pontas
+    
     public static String normalizarEmail(String email) {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
-    // Remove pontos, barras e traços do CNPJ (deixa apenas os 14 números)
+    
     public static String apenasDigitos(String valor) {
         return valor == null ? "" : valor.replaceAll("\\D", "");
     }
 
-    // Valida matematicamente os dígitos verificadores do CNPJ
+    
     public static boolean cnpjValido(String cnpjLimpo) {
         if (cnpjLimpo == null || !cnpjLimpo.matches("\\d{14}")) {
             return false;
         }
-        // Rejeita CNPJs com todos os números iguais (ex: 11111111111111)
+        
         if (cnpjLimpo.chars().distinct().count() == 1) {
             return false;
         }
@@ -47,7 +45,7 @@ public final class ValidadorUtils {
         return resto < 2 ? 0 : 11 - resto;
     }
 
-    // Garante senha com no mínimo 8 caracteres e dentro do limite do algoritmo BCrypt
+    
     public static void validarSenha(String senha) {
         if (senha == null || senha.length() < 8) {
             throw ExcecaoApi.dadosInvalidos("A senha deve ter no mínimo 8 caracteres.");
